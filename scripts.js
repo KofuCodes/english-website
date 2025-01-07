@@ -1,16 +1,49 @@
 // Track if we've already done the initial scroll
 let hasScrolled = false;
+let isScrolling = false;
 
-// Smooth scroll fix
-window.addEventListener('wheel', function (event) {
-    if (!hasScrolled && event.deltaY > 0) {
-        hasScrolled = true;
-        document.getElementById('introduction').scrollIntoView({ behavior: 'smooth', block: 'start' });
+// Smooth scroll to section function
+function smoothScrollTo(element) {
+    const targetPosition = element.getBoundingClientRect().top + window.pageYOffset;
+    const startPosition = window.pageYOffset;
+    const distance = targetPosition - startPosition;
+    const duration = 400; // Adjust this value to control scroll speed (in milliseconds)
+    let start = null;
+
+    function animation(currentTime) {
+        if (start === null) start = currentTime;
+        const timeElapsed = currentTime - start;
+        const progress = Math.min(timeElapsed / duration, 1);
+        
+        // Easing function for smooth animation
+        const ease = t => t < .5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+        
+        window.scrollTo(0, startPosition + distance * ease(progress));
+        
+        if (timeElapsed < duration) {
+            requestAnimationFrame(animation);
+        } else {
+            isScrolling = false;
+        }
     }
-});
+    
+    isScrolling = true;
+    requestAnimationFrame(animation);
+}
+
+// Initial scroll handler
+window.addEventListener('wheel', function(event) {
+    if (!hasScrolled && event.deltaY > 0 && !isScrolling) {
+        event.preventDefault();
+        hasScrolled = true;
+        const introSection = document.getElementById('introduction');
+        if (introSection) {
+            smoothScrollTo(introSection);
+        }
+    }
+}, { passive: false });
 
 // Navigation visibility
-let lastScrollY = 0;
 const navbar = document.getElementById('navbar');
 const scrollTopBtn = document.getElementById('scroll-top');
 
@@ -30,6 +63,43 @@ window.addEventListener('scroll', () => {
     }
 });
 
+// Show content for selected show
+function showContent(showId) {
+    if (isScrolling) return;
+    
+    document.querySelectorAll('.show-content').forEach(content => {
+        content.classList.add('hidden');
+        content.classList.remove('active');
+    });
+
+    const selectedContent = document.getElementById(showId);
+    document.getElementById('content-section').classList.remove('hidden');
+    selectedContent.classList.remove('hidden');
+
+    const header = selectedContent.querySelector('.show-header h2');
+    if (header) {
+        header.style.textAlign = 'center';
+    }
+
+    showAnalysisImage(showId);
+
+    setTimeout(() => {
+        selectedContent.classList.add('active');
+        smoothScrollTo(selectedContent);
+    }, 10);
+}
+
+// Scroll to top with custom animation
+scrollTopBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (isScrolling) return;
+    
+    smoothScrollTo(document.querySelector('.title-section'));
+});
+
+// Rest of your existing code for showAnalysisImage and other functions remains the same...
+
+// Image overlay function (unchanged)
 function showAnalysisImage(showId) {
     let overlay = document.getElementById('overlay');
     if (!overlay) {
@@ -61,49 +131,17 @@ function showAnalysisImage(showId) {
     overlay.classList.add('visible');
     floatingImage.style.display = 'block';
 
-    // Start the fade-in effect
     setTimeout(() => floatingImage.classList.add('fade-in'), 10);
 
-    // Remove the fade-in effect after 1.5 seconds
     setTimeout(() => {
         floatingImage.classList.remove('fade-in');
         overlay.classList.remove('visible');
 
-        // Hide the floating image after fading out
         setTimeout(() => {
             floatingImage.style.display = 'none';
         }, 500);
     }, 1500);
 }
-
-// Show content for selected show
-function showContent(showId) {
-    document.querySelectorAll('.show-content').forEach(content => {
-        content.classList.add('hidden');
-        content.classList.remove('active');
-    });
-
-    const selectedContent = document.getElementById(showId);
-    document.getElementById('content-section').classList.remove('hidden');
-    selectedContent.classList.remove('hidden');
-
-    const header = selectedContent.querySelector('.show-header h2');
-    if (header) {
-        header.style.textAlign = 'center';
-    }
-    // Trigger only image animation; header remains static
-    showAnalysisImage(showId);
-
-    setTimeout(() => {
-        selectedContent.classList.add('active');
-    }, 10);
-
-    selectedContent.scrollIntoView({ behavior: 'smooth' });
-}
-// Scroll to top functionality with smooth scroll
-scrollTopBtn.addEventListener('click', () => {
-    document.querySelector('.title-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
-});
 
 // Add fade-in animation to title on load
 window.addEventListener('load', () => {
